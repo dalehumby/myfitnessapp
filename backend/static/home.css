@@ -79,6 +79,93 @@
     cursor: not-allowed;
 }
 
+/* Exercise Detail Page Specific Styles */
+
+/* Header layout */
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start; /* Align items to the start */
+    margin-bottom: 20px;
+    padding: 0 10px; /* Add padding to the header itself if not using container padding */
+}
+
+/* Style for the Home button */
+#home-button {
+    padding: 8px 12px;
+    background-color: #f0f0f0; /* Light gray background */
+    border: 1px solid #ccc;
+    border-radius: 5px; /* Rounded corners */
+    cursor: pointer;
+    font-size: 1em;
+    margin-right: auto; /* Push exercise title or other elements to the right */
+}
+
+/* Style for the exercise card header (icon and title) - keep consistent */
+.exercise-card .card-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+/* Style for icons in headers - keep consistent */
+.card-header .header-icon {
+    font-size: 1.5em;
+    margin-right: 10px;
+}
+
+.card-header h2 {
+    margin: 0;
+    font-size: 1.3em;
+    font-weight: 600;
+}
+
+
+/* Footer layout */
+.footer {
+    display: flex;
+    justify-content: space-between; /* Distribute space between buttons */
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+    gap: 10px; /* Add space between buttons */
+}
+
+/* Style for buttons in the footer (Previous/Next/Complete) */
+.footer button {
+    padding: 10px 15px;
+    background-color: #007bff; /* Default blue color */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    flex-grow: 1; /* Allow buttons to grow and fill space */
+    text-align: center; /* Center text in buttons */
+}
+
+.footer button:disabled {
+    background-color: #cccccc; /* Grey out when disabled */
+    cursor: not-allowed;
+}
+
+/* Style for the Complete Workout button */
+.footer button#next-exercise.complete-workout-button {
+    background-color: #28a745; /* Example: Green color for completion */
+}
+
+.footer button#next-exercise.complete-workout-button:disabled {
+     background-color: #cccccc; /* Grey out when disabled */
+}
+
+
+/* Utility class to hide elements */
+.hidden {
+    display: none !important; /* Use !important to ensure it overrides other display styles */
+}
+
+
 /* Recent Workouts Section specific styles */
 .recent-workouts-card ul {
     list-style: none;

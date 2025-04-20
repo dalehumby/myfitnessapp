@@ -3,6 +3,7 @@ from flask import Flask, request, jsonify, g, render_template, redirect, url_for
 from .database import get_db, close_db, init_db, query_db, insert_db
 import click
 import datetime
+import sqlite3  # Import sqlite3 for error handling
 
 app = Flask(__name__)
 
@@ -19,6 +20,125 @@ def init_db_command():
 
 
 app.cli.add_command(init_db_command)
+
+
+# --- Helper function to populate previous workout data ---
+def populate_previous_workout_data_for_session(session_id):
+    """
+    Finds previous workout data for exercises in the given session
+    and populates the new session's sets.
+    Assumes 'set_number' column in exercise_set is the set number (1, 2, ...).
+    """
+    db = get_db()  # Get database connection
+
+    # Get the exercises for the newly created session (ordered by day_exercise.exercise_sequence)
+    session_exercises = query_db(
+        """
+        SELECT de.exercise_id, de.exercise_sequence
+        FROM day_exercise de
+        JOIN session s ON de.day_id = s.day_id
+        WHERE s.id = ?
+        ORDER BY de.exercise_sequence
+    """,
+        (session_id,),
+    )
+
+    for session_exercise in session_exercises:
+        exercise_id = session_exercise["exercise_id"]
+        # exercise_sequence_in_day is not needed for set matching
+
+        # Find the most recent session ID where this exercise was performed previously.
+        # Exclude the current session.
+        last_session = query_db(
+            """
+            SELECT es.session_id
+            FROM exercise_set es
+            JOIN session s ON es.session_id = s.id
+            WHERE es.exercise_id = ? AND s.id != ? -- Exclude current session
+            ORDER BY s.start_time DESC
+            LIMIT 1
+        """,
+            (exercise_id, session_id),
+            one=True,
+        )
+
+        if last_session:
+            last_session_id = last_session["session_id"]
+
+            # Get all set data for this exercise from that last session, ordered by set number
+            last_workout_sets = query_db(
+                """
+                SELECT set_number, set_type, weight, reps
+                FROM exercise_set
+                WHERE session_id = ? AND exercise_id = ?
+                ORDER BY set_number -- Order by set number
+            """,
+                (last_session_id, exercise_id),
+            )
+
+            # Get the sets for the *current* session's exercise
+            current_session_sets = query_db(
+                """
+                SELECT id, set_number, set_type, weight, reps
+                FROM exercise_set
+                WHERE session_id = ? AND exercise_id = ?
+            """,
+                (session_id, exercise_id),
+            )
+
+            # Now, iterate through the previous sets and update the matching current sets
+            for prev_set in last_workout_sets:
+                # Find the matching set in the current session by set type and set number
+                matching_current_set = next(
+                    (
+                        item
+                        for item in current_session_sets
+                        if item["set_type"] == prev_set["set_type"]
+                        and item["set_number"] == prev_set["set_number"]
+                    ),
+                    None,
+                )
+
+                if matching_current_set:
+                    # Found a match, update the weight and reps in the current session's set
+                    update_fields = {}
+                    if prev_set["weight"] is not None:
+                        # Apply progressive overload here if desired
+                        # For now, just copy the previous weight
+                        update_fields["weight"] = prev_set["weight"]
+                        # Example Progressive Overload:
+                        # if prev_set['set_type'] == 'working':
+                        #     update_fields['weight'] = (prev_set['weight'] or 0) + 2.5 # Add 2.5kg
+
+                    if prev_set["reps"] is not None:
+                        # For now, just copy the previous reps
+                        update_fields["reps"] = prev_set["reps"]
+
+                    if update_fields:
+                        try:
+                            # Update the database for this specific set
+                            update_query = (
+                                "UPDATE exercise_set SET "
+                                + ", ".join(
+                                    [f"{field} = ?" for field in update_fields.keys()]
+                                )
+                                + " WHERE id = ?"
+                            )
+                            update_args = list(update_fields.values()) + [
+                                matching_current_set["id"]
+                            ]
+                            db.execute(update_query, update_args)
+                            # No commit here, commit will be done in create_session after populating all exercises
+
+                        except sqlite3.Error as e:
+                            print(
+                                f"Database error updating set {matching_current_set['id']}: {e}"
+                            )
+                            # Handle error as appropriate for your app
+
+    # db.commit() is handled by the caller (create_session)
+    # db connection is managed by Flask's appcontext teardown
+    pass  # Helper function finishes
 
 
 # --- Routes to serve HTML pages ---
@@ -65,17 +185,22 @@ def exercise_detail_page(session_id, exercise_id):
     return render_template("exercise_detail.html")
 
 
+@app.route("/workout-complete")
+def workout_complete_page():
+    return render_template("workout_complete.html")
+
+
 # --- API Endpoints ---
 
 
-# Get all programs
+# Get all programs (unchanged)
 @app.route("/api/programs", methods=["GET"])
 def get_programs():
     programs = query_db("SELECT * FROM program")
     return jsonify([dict(p) for p in programs])
 
 
-# Get days for a specific program
+# Get days for a specific program (unchanged)
 @app.route("/api/program/<int:program_id>/days", methods=["GET"])
 def get_days_for_program(program_id):
     days = query_db("SELECT * FROM day WHERE program_id = ?", (program_id,))
@@ -84,7 +209,7 @@ def get_days_for_program(program_id):
     return jsonify([dict(d) for d in days])
 
 
-# Create a new session - MODIFIED INSERT
+# Create a new session - MODIFIED
 @app.route("/api/sessions", methods=["POST"])
 def create_session():
     data = request.json
@@ -93,79 +218,108 @@ def create_session():
     if not day_id:
         return jsonify({"error": "Missing day_id"}), 400
 
-    # Check if the day_id exists
     day = query_db("SELECT * FROM day WHERE id = ?", (day_id,), one=True)
     if not day:
         return jsonify({"error": "Day not found"}), 404
 
-    # Create the session - insert into start_time column
-    # The default value datetime('now','localtime') will be used automatically
-    session_id = insert_db("INSERT INTO session (day_id) VALUES (?)", (day_id,))
+    db = get_db()  # Get DB connection here to handle transaction
 
-    # Now, populate the 'exercise_set' table based on the exercises for this day
-    day_exercises = query_db(
-        "SELECT * FROM day_exercise WHERE day_id = ? ORDER BY sequence", (day_id,)
-    )
+    try:
+        # Create the session
+        cursor = db.execute("INSERT INTO session (day_id) VALUES (?)", (day_id,))
+        session_id = cursor.lastrowid
 
-    sets_created = []
-    for day_exercise in day_exercises:
-        exercise_id = day_exercise["exercise_id"]
-        exercise = query_db(
-            "SELECT * FROM exercise WHERE id = ?", (exercise_id,), one=True
+        # Get the exercises for this day, in their correct sequence (day_exercise.exercise_sequence)
+        day_exercises = query_db(
+            "SELECT exercise_id, exercise_sequence FROM day_exercise WHERE day_id = ? ORDER BY exercise_sequence",
+            (day_id,),
         )
 
-        if exercise:
-            # Add warmup sets
-            for i in range(exercise["warmup_sets"] or 0):
-                set_id = insert_db(
-                    """INSERT INTO exercise_set (session_id, exercise_id, sequence, set_type, weight, reps, completed)
-                                     VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                    (
-                        session_id,
-                        exercise_id,
-                        day_exercise["sequence"],
-                        "warmup",
-                        0,
-                        0,
-                        False,
-                    ),
-                )
-                sets_created.append(
-                    {"id": set_id, "exercise_id": exercise_id, "set_type": "warmup"}
-                )
+        sets_created_info = []  # To return info about created sets
 
-            # Add working sets
-            for i in range(exercise["working_sets"] or 0):
-                set_id = insert_db(
-                    """INSERT INTO exercise_set (session_id, exercise_id, sequence, set_type, weight, reps, completed)
-                                     VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                    (
-                        session_id,
-                        exercise_id,
-                        day_exercise["sequence"],
-                        "working",
-                        0,
-                        0,
-                        False,
-                    ),
-                )
-                sets_created.append(
-                    {"id": set_id, "exercise_id": exercise_id, "set_type": "working"}
-                )
+        for day_exercise in day_exercises:
+            exercise_id = day_exercise["exercise_id"]
+            exercise = query_db(
+                "SELECT * FROM exercise WHERE id = ?", (exercise_id,), one=True
+            )
 
-    return (
-        jsonify(
-            {
-                "message": "Session created",
-                "session_id": session_id,
-                "sets_created": sets_created,
-            }
-        ),
-        201,
-    )
+            if exercise:
+                # Add warmup sets - set_number should be the set number (1, 2, ...)
+                for i in range(exercise["warmup_sets"] or 0):
+                    set_number = i + 1  # Calculate set number
+                    set_id = db.execute(
+                        """INSERT INTO exercise_set (session_id, exercise_id, set_number, set_type, weight, reps, completed)
+                                         VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                        (
+                            session_id,
+                            exercise_id,
+                            set_number,
+                            "warmup",
+                            None,
+                            None,
+                            False,
+                        ),
+                    ).lastrowid  # Insert None for weight/reps initially
+                    sets_created_info.append(
+                        {
+                            "id": set_id,
+                            "exercise_id": exercise_id,
+                            "set_type": "warmup",
+                            "set_number": set_number,
+                        }
+                    )
+
+                # Add working sets - set_number should be the set number (1, 2, ...)
+                for i in range(exercise["working_sets"] or 0):
+                    set_number = i + 1  # Calculate set number
+                    set_id = db.execute(
+                        """INSERT INTO exercise_set (session_id, exercise_id, set_number, set_type, weight, reps, completed)
+                                         VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                        (
+                            session_id,
+                            exercise_id,
+                            set_number,
+                            "working",
+                            None,
+                            None,
+                            False,
+                        ),
+                    ).lastrowid  # Insert None for weight/reps initially
+                    sets_created_info.append(
+                        {
+                            "id": set_id,
+                            "exercise_id": exercise_id,
+                            "set_type": "working",
+                            "set_number": set_number,
+                        }
+                    )
+
+        # After creating the initial sets, populate with previous workout data
+        populate_previous_workout_data_for_session(session_id)
+
+        db.commit()  # Commit the session, initial sets, and populated data
+
+        return (
+            jsonify(
+                {
+                    "message": "Session created",
+                    "session_id": session_id,
+                    "sets_created_info": sets_created_info,
+                }
+            ),
+            201,
+        )
+
+    except sqlite3.Error as e:
+        db.rollback()  # Rollback changes if an error occurs
+        print(f"Database error creating session: {e}")
+        return jsonify({"error": "Database error creating session"}), 500
+    finally:
+        # Ensure db connection is closed by Flask's teardown
+        pass  # close_db is registered with app.teardown_appcontext
 
 
-# Get exercises for a specific session (no change needed for date column, joining on session_id)
+# Get exercises for a specific session - MODIFIED QUERY
 @app.route("/api/session/<int:session_id>/exercises", methods=["GET"])
 def get_exercises_for_session(session_id):
     # Get the day_id for the session
@@ -177,14 +331,14 @@ def get_exercises_for_session(session_id):
 
     day_id = session["day_id"]
 
-    # Get the exercises for that day, in order
+    # Get the exercises for that day, in order (using day_exercise.exercise_sequence)
     day_exercises = query_db(
         """
-        SELECT de.exercise_id, e.title, de.sequence
+        SELECT de.exercise_id, e.title, de.exercise_sequence
         FROM day_exercise de
         JOIN exercise e ON de.exercise_id = e.id
         WHERE de.day_id = ?
-        ORDER BY de.sequence
+        ORDER BY de.exercise_sequence
     """,
         (day_id,),
     )
@@ -192,7 +346,7 @@ def get_exercises_for_session(session_id):
     return jsonify([dict(de) for de in day_exercises])
 
 
-# Get details and sets for a specific exercise within a session (no change needed for date column, joining on session_id)
+# Get details and sets for a specific exercise within a session - MODIFIED QUERY
 @app.route("/api/session/<int:session_id>/exercise/<int:exercise_id>", methods=["GET"])
 def get_session_exercise_details_api(session_id, exercise_id):
     # Get exercise details
@@ -200,28 +354,40 @@ def get_session_exercise_details_api(session_id, exercise_id):
     if not exercise:
         return jsonify({"error": "Exercise not found"}), 404
 
-    # Get sets for this exercise in this session
+    # Get sets for this exercise in this session (ordering by exercise_set.set_number)
     sets = query_db(
         """
-        SELECT * FROM exercise_set
+        SELECT id, session_id, exercise_id, set_number, set_type, weight, reps, completed, start_time, end_time
+        FROM exercise_set
         WHERE session_id = ? AND exercise_id = ?
-        ORDER BY sequence
+        ORDER BY set_number -- Order by set number
     """,
         (session_id, exercise_id),
     )
 
+    # Return sets with 'set_number'
     return jsonify({"exercise": dict(exercise), "sets": [dict(s) for s in sets]})
 
 
-# Update a set (unchanged)
+# Update a set (no change needed)
 @app.route("/api/sets/<int:set_id>", methods=["PUT"])
 def update_set(set_id):
     data = request.json
     update_fields = {}
     if "weight" in data:
-        update_fields["weight"] = data["weight"]
+        try:
+            update_fields["weight"] = (
+                float(data["weight"]) if data["weight"] != "" else None
+            )
+        except ValueError:
+            return jsonify({"error": "Invalid weight value"}), 400
+
     if "reps" in data:
-        update_fields["reps"] = data["reps"]
+        try:
+            update_fields["reps"] = int(data["reps"]) if data["reps"] != "" else None
+        except ValueError:
+            return jsonify({"error": "Invalid reps value"}), 400
+
     if "completed" in data:
         update_fields["completed"] = bool(data["completed"])
 
@@ -236,15 +402,20 @@ def update_set(set_id):
     args = list(update_fields.values()) + [set_id]
 
     db = get_db()
-    cursor = db.execute(query, args)
-    db.commit()
-    row_count = cursor.rowcount
-    cursor.close()
+    try:
+        cursor = db.execute(query, args)
+        db.commit()
+        row_count = cursor.rowcount
+        cursor.close()
 
-    if row_count == 0:
-        return jsonify({"error": "Set not found"}), 404
+        if row_count == 0:
+            return jsonify({"error": "Set not found"}), 404
 
-    return jsonify({"message": "Set updated"})
+        return jsonify({"message": "Set updated"})
+    except sqlite3.Error as e:
+        db.rollback()
+        print(f"Database error updating set {set_id}: {e}")
+        return jsonify({"error": "Database error updating set"}), 500
 
 
 # Get recent sessions - MODIFIED QUERY
@@ -254,20 +425,18 @@ def get_recent_sessions():
         """
         SELECT
             s.id AS session_id,
-            -- Select the full start_time for ordering
             s.start_time AS session_start_time,
-            -- Select just the date part for display
             DATE(s.start_time) AS session_date_display,
             d.title AS day_title,
             p.title AS program_title,
-            GROUP_CONCAT(e.title, ', ' ORDER BY de.sequence) AS exercise_summary
+            GROUP_CONCAT(e.title, ', ' ORDER BY de.exercise_sequence) AS exercise_summary -- Order by exercise_sequence
         FROM session s
         JOIN day d ON s.day_id = d.id
         JOIN program p ON d.program_id = p.id
         JOIN day_exercise de ON d.id = de.day_id
         JOIN exercise e ON de.exercise_id = e.id
-        GROUP BY s.id, s.start_time, DATE(s.start_time), d.title, p.title -- Group by session details including start_time and date part
-        ORDER BY s.start_time DESC, s.id DESC -- Order by the full start_time
+        GROUP BY s.id, s.start_time, DATE(s.start_time), d.title, p.title
+        ORDER BY s.start_time DESC, s.id DESC
         LIMIT 10
     """
     )

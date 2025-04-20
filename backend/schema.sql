@@ -41,21 +41,22 @@ INSERT INTO day (
 
 
 -- Table: day_exercise
+-- Renamed 'order' to 'exercise_sequence'
 CREATE TABLE IF NOT EXISTS day_exercise (
-    id          INTEGER PRIMARY KEY
-                          NOT NULL,
-    day_id      INTEGER REFERENCES day (id)
-                          NOT NULL,
+    id                INTEGER PRIMARY KEY
+                              NOT NULL,
+    day_id          INTEGER REFERENCES day (id)
+                              NOT NULL,
     exercise_id NUMERIC REFERENCES exercise (id)
-                          NOT NULL,
-    sequence    INTEGER NOT NULL
+                              NOT NULL,
+    exercise_sequence INTEGER NOT NULL -- Renamed from sequence / [order]
 );
 
 INSERT INTO day_exercise (
                             id,
                             day_id,
                             exercise_id,
-                            sequence
+                            exercise_sequence -- Renamed
                           )
                           VALUES (
                             1,
@@ -68,7 +69,7 @@ INSERT INTO day_exercise (
                             id,
                             day_id,
                             exercise_id,
-                            sequence
+                            exercise_sequence -- Renamed
                           )
                           VALUES (
                             2,
@@ -81,7 +82,7 @@ INSERT INTO day_exercise (
                             id,
                             day_id,
                             exercise_id,
-                            sequence
+                            exercise_sequence -- Renamed
                           )
                           VALUES (
                             3,
@@ -94,7 +95,7 @@ INSERT INTO day_exercise (
                             id,
                             day_id,
                             exercise_id,
-                            sequence
+                            exercise_sequence -- Renamed
                           )
                           VALUES (
                             4,
@@ -107,7 +108,7 @@ INSERT INTO day_exercise (
                             id,
                             day_id,
                             exercise_id,
-                            sequence
+                            exercise_sequence -- Renamed
                           )
                           VALUES (
                             5,
@@ -120,7 +121,7 @@ INSERT INTO day_exercise (
                             id,
                             day_id,
                             exercise_id,
-                            sequence
+                            exercise_sequence -- Renamed
                           )
                           VALUES (
                             6,
@@ -228,29 +229,36 @@ INSERT INTO program (
 
 -- Table: session
 CREATE TABLE IF NOT EXISTS session (
-    id        INTEGER PRIMARY KEY
-                      NOT NULL,
-    start_time     TEXT    NOT NULL
-                      DEFAULT (datetime('now', 'localtime') ),
-    day_id TEXT    REFERENCES day (id)
-                      NOT NULL
-);
-
-
--- Table: set
-CREATE TABLE IF NOT EXISTS exercise_set (
     id          INTEGER PRIMARY KEY
                         NOT NULL,
-    session_id  INTEGER NOT NULL
-                        REFERENCES session (id),
-    exercise_id INTEGER REFERENCES exercise (id)
-                        NOT NULL,
-    sequence    INTEGER NOT NULL,
-    set_type    TEXT    NOT NULL,
-    weight      REAL    NOT NULL,
-    reps        INTEGER NOT NULL,
-    completed   BOOLEAN DEFAULT FALSE
+    start_time  TEXT    NOT NULL
+                        DEFAULT (datetime('now','localtime')),
+    day_id     INTEGER REFERENCES day (id)
+                       NOT NULL
 );
+
+-- Sample session data removed.
+
+
+-- Table: exercise_set
+-- Renamed 'sequence' to 'set_number'
+CREATE TABLE IF NOT EXISTS exercise_set (
+    id            INTEGER PRIMARY KEY
+                          NOT NULL,
+    session_id    INTEGER NOT NULL
+                          REFERENCES session (id),
+    exercise_id INTEGER REFERENCES exercise (id)
+                          NOT NULL,
+    set_number    INTEGER NOT NULL, -- Renamed from sequence
+    set_type      TEXT    NOT NULL,
+    weight        REAL,
+    reps          INTEGER,
+    completed     BOOLEAN DEFAULT FALSE,
+    start_time    TEXT,
+    end_time      TEXT
+);
+
+-- Sample set data removed.
 
 
 COMMIT TRANSACTION;

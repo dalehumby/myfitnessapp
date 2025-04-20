@@ -1,4 +1,4 @@
-// frontend/static/exercise_detail.js
+// backend/static/exercise_detail.js
 
 document.addEventListener('DOMContentLoaded', () => {
     const exerciseTitle = document.getElementById('exercise-title');
@@ -6,23 +6,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const warmupSetsDiv = document.getElementById('warmup-sets');
     const workingSetsDiv = document.getElementById('working-sets');
     const addSetButtons = document.querySelectorAll('.add-set-button');
+
+    const homeButton = document.getElementById('home-button');
     const prevExerciseButton = document.getElementById('prev-exercise');
     const nextExerciseButton = document.getElementById('next-exercise');
-    const viewPreviousButton = document.getElementById('view-previous');
 
 
     // Get session and exercise ID from the URL
     const pathParts = window.location.pathname.split('/');
     const sessionId = pathParts[2];
-    const exerciseId = pathParts[4]; // Assuming URL is /session/<session_id>/exercise/<exercise_id>
+    const exerciseId = pathParts[4];
 
     if (!sessionId || !exerciseId) {
         exerciseTitle.textContent = 'Session or Exercise ID not provided in URL.';
+        // Hide navigation buttons if essential IDs are missing
+        prevExerciseButton.classList.add('hidden');
+        nextExerciseButton.classList.add('hidden');
         return;
     }
 
-    let sessionExercises = [];
-    let currentExerciseIndex = -1;
+    let sessionExercises = []; // Array of exercise objects for the current session
+    let currentExerciseIndex = -1; // Index of the current exercise in the sessionExercises array
+    let currentExerciseSets = []; // Array of set objects for the current exercise in the current session
 
 
     // Function to fetch the list of exercises for the session (for navigation)
@@ -30,26 +35,39 @@ document.addEventListener('DOMContentLoaded', () => {
          try {
             const response = await fetch(`/api/session/${sessionId}/exercises`);
             sessionExercises = await response.json();
-            // Find the index of the current exercise
-            currentExerciseIndex = sessionExercises.findIndex(ex => ex.exercise_id == exerciseId);
-            updateNavigationButtons();
+            // Find the index of the current exercise based on exercise_id
+            currentExerciseIndex = sessionExercises.findIndex(ex => ex.exercise_id == parseInt(exerciseId)); // Ensure exerciseId is treated as a number
+
+            // Update navigation button display (text and visibility)
+            updateNavigationButtonDisplay();
+
         } catch (error) {
             console.error('Error fetching session exercises for navigation:', error);
+            // Hide buttons if exercises can't be fetched
+            prevExerciseButton.classList.add('hidden');
+            nextExerciseButton.classList.add('hidden');
         }
     }
 
 
-    // Function to fetch exercise details and sets
+    // Function to fetch exercise details and sets for the current session
     async function fetchExerciseDetails(sessionId, exerciseId) {
         try {
             const response = await fetch(`/api/session/${sessionId}/exercise/${exerciseId}`);
             const data = await response.json();
             if (response.ok) {
                 displayExercise(data.exercise, data.sets);
+                // Store the fetched sets to check completion status later
+                currentExerciseSets = data.sets;
+                // After displaying sets, update the state of the "Complete Workout" button
+                updateCompleteWorkoutButtonState();
+
             } else {
                 exerciseTitle.textContent = 'Error loading exercise: ' + data.error;
                  warmupSetsDiv.innerHTML = '';
                  workingSetsDiv.innerHTML = '';
+                 currentExerciseSets = []; // Clear sets on error
+                 updateCompleteWorkoutButtonState(); // Update button state
             }
 
         } catch (error) {
@@ -57,10 +75,13 @@ document.addEventListener('DOMContentLoaded', () => {
              exerciseTitle.textContent = 'Error loading exercise.';
              warmupSetsDiv.innerHTML = '';
              workingSetsDiv.innerHTML = '';
+             currentExerciseSets = []; // Clear sets on error
+             updateCompleteWorkoutButtonState(); // Update button state
         }
     }
 
-    // Function to display exercise data and sets
+
+    // Function to display exercise data and sets (remains the same)
     function displayExercise(exercise, sets) {
         exerciseTitle.textContent = exercise.title;
         // exerciseTarget.textContent = `Target: ${exercise.target || 'N/A'}`;
@@ -80,71 +101,83 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Function to create the HTML for a single set
+    // Function to create the HTML for a single set (remains the same)
     function createSetElement(set) {
         const setDiv = document.createElement('div');
         setDiv.classList.add('set-item');
-        setDiv.dataset.setId = set.id; // Store set ID
+        setDiv.dataset.setId = set.id;
+        setDiv.dataset.setType = set.set_type;
+        setDiv.dataset.setNumber = set.set_number;
 
-        // Create and configure weight input
+
         const weightInput = document.createElement('input');
         weightInput.type = 'number';
-        weightInput.value = set.weight;
         weightInput.placeholder = 'Weight';
         weightInput.dataset.setId = set.id;
-        weightInput.addEventListener('change', handleSetInputChange); // Add event listener
+        weightInput.addEventListener('change', handleSetInputChange);
 
-        // Create the 'kg' text element
         const kgText = document.createElement('span');
         kgText.textContent = ' kg ';
 
-        // Create and configure reps input
         const repsInput = document.createElement('input');
         repsInput.type = 'number';
-        repsInput.value = set.reps;
         repsInput.placeholder = 'Reps';
         repsInput.dataset.setId = set.id;
-        repsInput.addEventListener('change', handleSetInputChange); // Add event listener
+        repsInput.addEventListener('change', handleSetInputChange);
 
-         // Create the 'reps' text element
         const repsText = document.createElement('span');
         repsText.textContent = ' reps';
 
 
-        // Append inputs and text spans to the setDiv
         setDiv.appendChild(weightInput);
         setDiv.appendChild(kgText);
         setDiv.appendChild(repsInput);
         setDiv.appendChild(repsText);
 
 
-        // Create actions div
         const actionsDiv = document.createElement('div');
         actionsDiv.classList.add('set-actions');
 
-        // Create the complete button
         const completeButton = document.createElement('button');
         completeButton.classList.add('complete-set-button');
         completeButton.dataset.setId = set.id;
         completeButton.textContent = set.completed ? '✔️' : '□';
         completeButton.addEventListener('click', handleCompleteSet);
 
-        // Append the complete button to the actions div
         actionsDiv.appendChild(completeButton);
 
-        // Append the actions div to the setDiv
         setDiv.appendChild(actionsDiv);
 
+        weightInput.value = set.weight !== null ? set.weight : '';
+        repsInput.value = set.reps !== null ? set.reps : '';
 
         return setDiv;
     }
 
-    // Event handler for input changes (weight/reps) - sends update to backend
+    // Event handler for input changes (weight/reps) - remains the same
     async function handleSetInputChange(event) {
-        console.log('handleSetInputChange called', event.target.dataset.setId, event.target.placeholder, event.target.value);
         const setId = event.target.dataset.setId;
-        const field = event.target.placeholder.toLowerCase(); // 'weight' or 'reps'
+        const field = event.target.placeholder.toLowerCase();
         const value = event.target.value;
+
+        let typedValue = value;
+        if (field === 'weight') {
+            typedValue = value !== '' ? parseFloat(value) : null;
+             if (value !== '' && (isNaN(typedValue) || !isFinite(typedValue))) {
+                 console.error("Invalid input for weight:", value);
+                 alert("Please enter a valid number for weight.");
+                 event.target.value = '';
+                 return;
+             }
+        } else if (field === 'reps') {
+            typedValue = value !== '' ? parseInt(value, 10) : null;
+             if (value !== '' && (isNaN(typedValue) || !isFinite(typedValue))) {
+                 console.error("Invalid input for reps:", value);
+                 alert("Please enter a valid number for reps.");
+                 event.target.value = '';
+                 return;
+             }
+        }
 
          try {
             const response = await fetch(`/api/sets/${setId}`, {
@@ -152,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ [field]: value })
+                body: JSON.stringify({ [field]: typedValue })
             });
             const data = await response.json();
             if (!response.ok) {
@@ -168,14 +201,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // Event handler for completing/uncompleting a set (toggles the status and saves weight/reps)
+    // Event handler for completing/uncompleting a set - MODIFIED to update button state
     async function handleCompleteSet(event) {
         const completeButton = event.target;
         const setId = completeButton.dataset.setId;
         const isCurrentlyCompleted = completeButton.textContent === '✔️';
-        const newState = !isCurrentlyCompleted; // Toggle the state
+        const newState = !isCurrentlyCompleted;
 
-        // Find the parent .set-item element for this button
         const setItemElement = completeButton.closest('.set-item');
         if (!setItemElement) {
             console.error('Could not find parent .set-item element for set ID:', setId);
@@ -183,15 +215,22 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Find the weight and reps input fields within this set item
         const weightInput = setItemElement.querySelector('input[placeholder="Weight"]');
         const repsInput = setItemElement.querySelector('input[placeholder="Reps"]');
 
-        // Get the current values from the input fields
-        const currentWeight = weightInput ? parseFloat(weightInput.value) : 0; // Use parseFloat for weight
-        const currentReps = repsInput ? parseInt(repsInput.value, 10) : 0; // Use parseInt for reps
+        const currentWeight = weightInput && weightInput.value !== '' ? parseFloat(weightInput.value) : null;
+        const currentReps = repsInput && repsInput.value !== '' ? parseInt(repsInput.value, 10) : null;
 
-        // Prepare the data to send to the backend
+         if (weightInput && weightInput.value !== '' && (isNaN(currentWeight) || !isFinite(currentWeight))) {
+              alert('Invalid weight value.');
+              return;
+         }
+         if (repsInput && repsInput.value !== '' && (isNaN(currentReps) || !isFinite(currentReps))) {
+             alert('Invalid reps value.');
+             return;
+         }
+
+
         const updateData = {
             completed: newState,
             weight: currentWeight,
@@ -199,7 +238,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         try {
-            // Send a PUT request to update the 'completed', 'weight', and 'reps' status
             const response = await fetch(`/api/sets/${setId}`, {
                 method: 'PUT',
                 headers: {
@@ -209,9 +247,18 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const data = await response.json();
             if (response.ok) {
-                // Update the button text in the UI based on the new state
                 completeButton.textContent = newState ? '✔️' : '□';
                 console.log(`Set ${setId} updated: completed=${newState}, weight=${currentWeight}, reps=${currentReps}`);
+
+                // Update the completed status in the local currentExerciseSets array
+                const setIndex = currentExerciseSets.findIndex(set => set.id == setId);
+                if (setIndex !== -1) {
+                    currentExerciseSets[setIndex].completed = newState;
+                }
+
+                // Check and update the state of the "Complete Workout" button
+                updateCompleteWorkoutButtonState();
+
             } else {
                 console.error('Failed to update set:', data.error);
                 alert('Error updating set: ' + data.error);
@@ -223,60 +270,70 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    // Event handler for adding a new set
-    async function handleAddSet(event) {
-        const setType = event.target.dataset.setType;
-        // Need to determine the correct 'order' for the new set.
-        // For simplicity initially, let's assume you can only add working sets
-        // and the order is just the next number after the last working set.
-        // A more robust solution would fetch existing sets to determine the max order for the given type.
-
-         alert("Adding sets functionality needs to be fully implemented.");
-        // Example (needs refinement to get the correct order dynamically):
-        // const existingSets = Array.from(workingSetsDiv.querySelectorAll('.set-item')); // Get current working sets
-        // const newSetOrder = existingSets.length + 1; // Simple guess for order
-
-        // const newSetData = {
-        //     session_id: parseInt(sessionId),
-        //     exercise_id: parseInt(exerciseId),
-        //     set_type: setType, // Should be 'working' if adding from the working sets section
-        //     order: newSetOrder,
-        //     weight: 0,
-        //     reps: 0
-        // };
-        //
-        // try {
-        //     const response = await fetch('/api/sets', {
-        //         method: 'POST',
-        //         headers: { 'Content-Type': 'application/json' },
-        //         body: JSON.stringify(newSetData)
-        //     });
-        //     const data = await response.json();
-        //     if (response.ok) {
-        //         console.log('New set added:', data);
-        //         // Re-fetch and display exercises to update the list
-        //         fetchExerciseDetails(sessionId, exerciseId);
-        //     } else {
-        //          console.error('Failed to add set:', data.error);
-        //          alert('Error adding set: ' + data.error);
-        //     }
-        // } catch (error) {
-        //     console.error('Error adding set:', error);
-        //     alert('An error occurred while adding the set.');
-        // }
-    }
+    // Event handler for adding a new set (remains the same placeholder)
+     async function handleAddSet(event) {
+         const setType = event.target.dataset.setType;
+          alert("Adding sets functionality needs to be fully implemented.");
+     }
 
     addSetButtons.forEach(button => {
         button.addEventListener('click', handleAddSet);
     });
 
 
-    // Navigation between exercises
-    function updateNavigationButtons() {
-        prevExerciseButton.disabled = currentExerciseIndex <= 0;
-        nextExerciseButton.disabled = currentExerciseIndex >= sessionExercises.length - 1;
+    // --- Navigation Button Display and Logic ---
+
+    // Function to update navigation button display (text and visibility)
+    function updateNavigationButtonDisplay() {
+        // Hide previous button if it's the first exercise
+        if (currentExerciseIndex <= 0) {
+            prevExerciseButton.classList.add('hidden');
+        } else {
+            prevExerciseButton.classList.remove('hidden');
+             // Set text to previous exercise name
+             const prevExercise = sessionExercises[currentExerciseIndex - 1];
+             prevExerciseButton.textContent = `< ${prevExercise.title}`;
+        }
+
+        // Check if it's the last exercise
+        if (currentExerciseIndex >= sessionExercises.length - 1) {
+            // If it's the last exercise, change text to "Complete Workout"
+            nextExerciseButton.textContent = 'Complete Workout';
+            nextExerciseButton.classList.add('complete-workout-button'); // Add class for styling
+            // The disabled state is handled by updateCompleteWorkoutButtonState
+        } else {
+             // If not the last exercise, set text to next exercise name
+             const nextExercise = sessionExercises[currentExerciseIndex + 1];
+             nextExerciseButton.textContent = `${nextExercise.title} >`;
+             nextExerciseButton.classList.remove('complete-workout-button'); // Remove class
+             nextExerciseButton.disabled = false; // Ensure it's not disabled
+        }
+         // Note: The click listeners for prev/next don't need to change as they check the index
+         // and use window.location.href for navigation.
     }
 
+    // Function to check if all sets for the *current* exercise are completed
+    function areAllCurrentExerciseSetsCompleted() {
+        // Filter for sets that are *not* completed
+        const incompleteSets = currentExerciseSets.filter(set => set.completed !== true);
+        // If there are no incomplete sets, then all sets are completed
+        return incompleteSets.length === 0;
+         // If you only require working sets to be completed:
+         // const incompleteWorkingSets = currentExerciseSets.filter(set => set.set_type === 'working' && set.completed !== true);
+         // return incompleteWorkingSets.length === 0;
+    }
+
+    // Function to update the disabled state of the "Complete Workout" button
+    function updateCompleteWorkoutButtonState() {
+        // Only apply this logic if the next button is currently the "Complete Workout" button
+        if (nextExerciseButton.classList.contains('complete-workout-button')) {
+            const allCompleted = areAllCurrentExerciseSetsCompleted();
+            nextExerciseButton.disabled = !allCompleted; // Disable if not all are completed
+        }
+    }
+
+
+    // Event listener for Previous Exercise button (now in footer) - remains the same
     prevExerciseButton.addEventListener('click', () => {
         if (currentExerciseIndex > 0) {
             const prevExercise = sessionExercises[currentExerciseIndex - 1];
@@ -284,24 +341,36 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Event listener for Next Exercise / Complete Workout button (now in footer) - remains the same navigation logic,
+    // but the text and disabled state are managed by updateNavigationButtonDisplay and updateCompleteWorkoutButtonState
     nextExerciseButton.addEventListener('click', () => {
-         if (currentExerciseIndex < sessionExercises.length - 1) {
-            const nextExercise = sessionExercises[currentExerciseIndex + 1];
-            window.location.href = `/session/${sessionId}/exercise/${nextExercise.exercise_id}`;
-        }
+         // Only navigate if it's the "Next Exercise" button
+         if (!nextExerciseButton.classList.contains('complete-workout-button')) {
+             if (currentExerciseIndex < sessionExercises.length - 1) {
+                const nextExercise = sessionExercises[currentExerciseIndex + 1];
+                window.location.href = `/session/${sessionId}/exercise/${nextExercise.exercise_id}`;
+             }
+         } else {
+             // Logic for "Complete Workout" button click would go here later
+             console.log("Complete Workout button clicked!");
+             // For now, the button is disabled until all sets are done.
+             // When enabled, it does nothing yet.
+         }
     });
 
-     // Event listener for View Previous button (implement logic later)
-    viewPreviousButton.addEventListener('click', () => {
-        alert("View Previous functionality needs to be implemented.");
-         // This would likely involve fetching historical data for this exercise
-         // and displaying it in a modal or new page.
+
+    // --- Home Button Functionality ---
+    // Add event listener for the Home button
+    homeButton.addEventListener('click', () => {
+        window.location.href = '/'; // Redirect to the home page (index.html)
     });
 
 
-    // Initial fetch of exercise details and sets when the page loads
-    fetchExerciseDetails(sessionId, exerciseId);
+    // --- Initial Load ---
 
-    // Fetch session exercises for navigation
+    // Fetch session exercises for navigation first
     fetchSessionExercisesForNavigation(sessionId);
+
+     // Then fetch exercise details and sets
+     fetchExerciseDetails(sessionId, exerciseId);
 });
