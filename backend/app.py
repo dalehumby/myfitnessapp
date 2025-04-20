@@ -3,7 +3,7 @@ from flask import Flask, request, jsonify, g, render_template, redirect, url_for
 from .database import get_db, close_db, init_db, query_db, insert_db
 import click
 import datetime
-import sqlite3  # Import sqlite3 for error handling
+import sqlite3
 
 app = Flask(__name__)
 
@@ -22,10 +22,11 @@ def init_db_command():
 app.cli.add_command(init_db_command)
 
 
-# --- Helper function to populate previous workout data ---
-def populate_previous_workout_data_for_session(session_id):
+# --- Helper function to populate previous session data ---
+# Renamed function for consistency
+def populate_previous_session_data_for_session(session_id):
     """
-    Finds previous workout data for exercises in the given session
+    Finds previous session data for exercises in the given session
     and populates the new session's sets.
     Assumes 'set_number' column in exercise_set is the set number (1, 2, ...).
     """
@@ -47,7 +48,8 @@ def populate_previous_workout_data_for_session(session_id):
         exercise_id = session_exercise["exercise_id"]
         # exercise_sequence_in_day is not needed for set matching
 
-        # Find the most recent session ID where this exercise was performed previously.
+        # Find the most recent previous session ID for this exercise
+        # Join exercise_set with session and order sessions by start_time descending.
         # Exclude the current session.
         last_session = query_db(
             """
@@ -66,7 +68,8 @@ def populate_previous_workout_data_for_session(session_id):
             last_session_id = last_session["session_id"]
 
             # Get all set data for this exercise from that last session, ordered by set number
-            last_workout_sets = query_db(
+            # Renamed variable for consistency
+            last_session_sets = query_db(
                 """
                 SELECT set_number, set_type, weight, reps
                 FROM exercise_set
@@ -87,7 +90,7 @@ def populate_previous_workout_data_for_session(session_id):
             )
 
             # Now, iterate through the previous sets and update the matching current sets
-            for prev_set in last_workout_sets:
+            for prev_set in last_session_sets:  # Renamed variable
                 # Find the matching set in the current session by set type and set number
                 matching_current_set = next(
                     (
@@ -108,6 +111,7 @@ def populate_previous_workout_data_for_session(session_id):
                         update_fields["weight"] = prev_set["weight"]
                         # Example Progressive Overload:
                         # if prev_set['set_type'] == 'working':
+                        #     # Ensure previous weight is treated as a number (handle None/zero)
                         #     update_fields['weight'] = (prev_set['weight'] or 0) + 2.5 # Add 2.5kg
 
                     if prev_set["reps"] is not None:
@@ -149,11 +153,13 @@ def index():
     return render_template("index.html")
 
 
+# Route for starting a session (unchanged)
 @app.route("/start-session")
 def start_session_page():
     return render_template("start_session.html")
 
 
+# Route for viewing exercises within a session (unchanged)
 @app.route("/session/<int:session_id>/exercises")
 def session_exercises_page(session_id):
     session = query_db("SELECT id FROM session WHERE id = ?", (session_id,), one=True)
@@ -162,6 +168,7 @@ def session_exercises_page(session_id):
     return render_template("session_exercises.html")
 
 
+# Route for viewing a specific exercise within a session (unchanged)
 @app.route("/session/<int:session_id>/exercise/<int:exercise_id>")
 def exercise_detail_page(session_id, exercise_id):
     session = query_db("SELECT id FROM session WHERE id = ?", (session_id,), one=True)
@@ -185,9 +192,20 @@ def exercise_detail_page(session_id, exercise_id):
     return render_template("exercise_detail.html")
 
 
-@app.route("/workout-complete")
-def workout_complete_page():
-    return render_template("workout_complete.html")
+# Route for workout complete page, accepting session_id
+# Renamed from /workout-complete
+@app.route("/session/<int:session_id>/complete")
+def session_complete_page(session_id):
+    # Optionally check if session exists and is completed before rendering
+    session = query_db("SELECT id FROM session WHERE id = ?", (session_id,), one=True)
+    if session is None:
+        return "Session not found", 404
+
+    # Could add logic here to mark session as completed in DB if desired
+
+    return render_template(
+        "workout_complete.html", session_id=session_id
+    )  # Pass session_id to template
 
 
 # --- API Endpoints ---
@@ -209,7 +227,8 @@ def get_days_for_program(program_id):
     return jsonify([dict(d) for d in days])
 
 
-# Create a new session - MODIFIED
+# Create a new session (calls renamed helper function)
+# Renamed sets_created_info to session_sets_created_info for consistency
 @app.route("/api/sessions", methods=["POST"])
 def create_session():
     data = request.json
@@ -222,7 +241,7 @@ def create_session():
     if not day:
         return jsonify({"error": "Day not found"}), 404
 
-    db = get_db()  # Get DB connection here to handle transaction
+    db = get_db()
 
     try:
         # Create the session
@@ -235,7 +254,7 @@ def create_session():
             (day_id,),
         )
 
-        sets_created_info = []  # To return info about created sets
+        session_sets_created_info = []  # Renamed variable
 
         for day_exercise in day_exercises:
             exercise_id = day_exercise["exercise_id"]
@@ -244,9 +263,8 @@ def create_session():
             )
 
             if exercise:
-                # Add warmup sets - set_number should be the set number (1, 2, ...)
                 for i in range(exercise["warmup_sets"] or 0):
-                    set_number = i + 1  # Calculate set number
+                    set_number = i + 1
                     set_id = db.execute(
                         """INSERT INTO exercise_set (session_id, exercise_id, set_number, set_type, weight, reps, completed)
                                          VALUES (?, ?, ?, ?, ?, ?, ?)""",
@@ -259,8 +277,8 @@ def create_session():
                             None,
                             False,
                         ),
-                    ).lastrowid  # Insert None for weight/reps initially
-                    sets_created_info.append(
+                    ).lastrowid
+                    session_sets_created_info.append(
                         {
                             "id": set_id,
                             "exercise_id": exercise_id,
@@ -269,9 +287,8 @@ def create_session():
                         }
                     )
 
-                # Add working sets - set_number should be the set number (1, 2, ...)
                 for i in range(exercise["working_sets"] or 0):
-                    set_number = i + 1  # Calculate set number
+                    set_number = i + 1
                     set_id = db.execute(
                         """INSERT INTO exercise_set (session_id, exercise_id, set_number, set_type, weight, reps, completed)
                                          VALUES (?, ?, ?, ?, ?, ?, ?)""",
@@ -284,8 +301,8 @@ def create_session():
                             None,
                             False,
                         ),
-                    ).lastrowid  # Insert None for weight/reps initially
-                    sets_created_info.append(
+                    ).lastrowid
+                    session_sets_created_info.append(
                         {
                             "id": set_id,
                             "exercise_id": exercise_id,
@@ -294,35 +311,33 @@ def create_session():
                         }
                     )
 
-        # After creating the initial sets, populate with previous workout data
-        populate_previous_workout_data_for_session(session_id)
+        # Populate with previous session data using the renamed helper
+        populate_previous_session_data_for_session(session_id)
 
-        db.commit()  # Commit the session, initial sets, and populated data
+        db.commit()
 
         return (
             jsonify(
                 {
                     "message": "Session created",
                     "session_id": session_id,
-                    "sets_created_info": sets_created_info,
+                    "session_sets_created_info": session_sets_created_info,
                 }
             ),
             201,
-        )
+        )  # Renamed key
 
     except sqlite3.Error as e:
-        db.rollback()  # Rollback changes if an error occurs
+        db.rollback()
         print(f"Database error creating session: {e}")
         return jsonify({"error": "Database error creating session"}), 500
     finally:
-        # Ensure db connection is closed by Flask's teardown
-        pass  # close_db is registered with app.teardown_appcontext
+        pass
 
 
-# Get exercises for a specific session - MODIFIED QUERY
+# Get exercises for a specific session (unchanged, uses correct names)
 @app.route("/api/session/<int:session_id>/exercises", methods=["GET"])
 def get_exercises_for_session(session_id):
-    # Get the day_id for the session
     session = query_db(
         "SELECT day_id FROM session WHERE id = ?", (session_id,), one=True
     )
@@ -331,7 +346,6 @@ def get_exercises_for_session(session_id):
 
     day_id = session["day_id"]
 
-    # Get the exercises for that day, in order (using day_exercise.exercise_sequence)
     day_exercises = query_db(
         """
         SELECT de.exercise_id, e.title, de.exercise_sequence
@@ -346,30 +360,27 @@ def get_exercises_for_session(session_id):
     return jsonify([dict(de) for de in day_exercises])
 
 
-# Get details and sets for a specific exercise within a session - MODIFIED QUERY
+# Get details and sets for a specific exercise within a session (unchanged, uses correct names)
 @app.route("/api/session/<int:session_id>/exercise/<int:exercise_id>", methods=["GET"])
 def get_session_exercise_details_api(session_id, exercise_id):
-    # Get exercise details
     exercise = query_db("SELECT * FROM exercise WHERE id = ?", (exercise_id,), one=True)
     if not exercise:
         return jsonify({"error": "Exercise not found"}), 404
 
-    # Get sets for this exercise in this session (ordering by exercise_set.set_number)
     sets = query_db(
         """
         SELECT id, session_id, exercise_id, set_number, set_type, weight, reps, completed, start_time, end_time
         FROM exercise_set
         WHERE session_id = ? AND exercise_id = ?
-        ORDER BY set_number -- Order by set number
+        ORDER BY set_number
     """,
         (session_id, exercise_id),
     )
 
-    # Return sets with 'set_number'
     return jsonify({"exercise": dict(exercise), "sets": [dict(s) for s in sets]})
 
 
-# Update a set (no change needed)
+# Update a set (unchanged, uses correct table name)
 @app.route("/api/sets/<int:set_id>", methods=["PUT"])
 def update_set(set_id):
     data = request.json
@@ -418,7 +429,7 @@ def update_set(set_id):
         return jsonify({"error": "Database error updating set"}), 500
 
 
-# Get recent sessions - MODIFIED QUERY
+# Get recent sessions (unchanged, uses correct names)
 @app.route("/api/sessions/recent", methods=["GET"])
 def get_recent_sessions():
     recent_sessions = query_db(
@@ -429,7 +440,7 @@ def get_recent_sessions():
             DATE(s.start_time) AS session_date_display,
             d.title AS day_title,
             p.title AS program_title,
-            GROUP_CONCAT(e.title, ', ' ORDER BY de.exercise_sequence) AS exercise_summary -- Order by exercise_sequence
+            GROUP_CONCAT(e.title, ', ' ORDER BY de.exercise_sequence) AS exercise_summary
         FROM session s
         JOIN day d ON s.day_id = d.id
         JOIN program p ON d.program_id = p.id
@@ -444,5 +455,22 @@ def get_recent_sessions():
     return jsonify([dict(row) for row in recent_sessions])
 
 
+# New API endpoint for completed session message, accepts session_id
+# Renamed from /api/motivational-message
+@app.route("/api/session/<int:session_id>/completed-message", methods=["GET"])
+def get_completed_session_message(session_id):
+    # In the future, this could use the session_id to fetch session data
+    # and generate a dynamic message based on performance.
+    # For now, return a static message.
+    message = {
+        "message": "Dale, you crushed today’s workout—tripling your deadlift from 6 kg to 45 kg and powering through 3 full sets at that weight shows insane progress and unstoppable momentum! 💪🔥"
+        # You could potentially fetch session data here like:
+        # session_data = query_db('SELECT * FROM session WHERE id = ?', (session_id,), one=True)
+        # And use it to personalize the message.
+    }
+    return jsonify(message)
+
+
 if __name__ == "__main__":
+    # This block is executed when the script is run directly
     app.run(debug=True)

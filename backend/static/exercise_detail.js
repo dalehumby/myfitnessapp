@@ -341,20 +341,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Event listener for Next Exercise / Complete Workout button (now in footer) - remains the same navigation logic,
-    // but the text and disabled state are managed by updateNavigationButtonDisplay and updateCompleteWorkoutButtonState
+    // Event listener for Next Exercise / Complete Workout button - MODIFIED REDIRECT
     nextExerciseButton.addEventListener('click', () => {
-         // Only navigate if it's the "Next Exercise" button
-         if (!nextExerciseButton.classList.contains('complete-workout-button')) {
+         if (nextExerciseButton.classList.contains('complete-workout-button') && !nextExerciseButton.disabled) {
+             // If all sets are complete and it's the last exercise, go to workout complete page
+             // Use the new route format /session/<sessionId>/complete
+             window.location.href = `/session/${sessionId}/complete`; // Updated redirect URL
+         } else {
              if (currentExerciseIndex < sessionExercises.length - 1) {
                 const nextExercise = sessionExercises[currentExerciseIndex + 1];
                 window.location.href = `/session/${sessionId}/exercise/${nextExercise.exercise_id}`;
              }
-         } else {
-             // Logic for "Complete Workout" button click would go here later
-             console.log("Complete Workout button clicked!");
-             // For now, the button is disabled until all sets are done.
-             // When enabled, it does nothing yet.
          }
     });
 

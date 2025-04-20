@@ -1,0 +1,99 @@
+/* backend/static/workout_complete.css */
+
+/* Style for the body to center content and set background */
+body {
+    min-height: 100vh; /* Ensure body takes at least full viewport height */
+    margin: 0;
+    display: flex;
+    flex-direction: column; /* Stack elements vertically */
+    align-items: center; /* Center horizontally */
+    justify-content: center; /* Center vertically */
+    background-color: #f4f4f4; /* Match general background */
+    /* overflow-x: hidden; /* Keep if you're concerned about overflow */
+}
+
+/* Adjust the container for this page if needed */
+.workout-complete-container {
+     max-width: 500px; /* Example width */
+     padding: 20px;
+     text-align: center; /* Center text within the container */
+     position: relative; /* Needed for z-index with background */
+     z-index: 1; /* Ensure content is above confetti canvas */
+}
+
+/* Style the celebration header */
+.celebration-header {
+    margin-bottom: 30px;
+    color: #ff6f00; /* Example accent color (orange/yellow) */
+}
+
+.celebration-header .celebration-icon {
+    font-size: 3em; /* Make icon larger */
+    display: block; /* Icon on its own line */
+    margin-bottom: 10px;
+}
+
+.celebration-header h1 {
+    margin: 0;
+    font-size: 2em; /* Larger title font */
+    font-weight: bold;
+}
+
+/* Style the motivational message card */
+.motivational-message-card {
+    /* Inherits .card styles from home.css (padding, border, shadow) */
+    margin-bottom: 20px;
+    text-align: left; /* Align text to the left as in mockup */
+    font-size: 1.1em;
+    line-height: 1.5; /* Improve readability */
+    color: #333;
+}
+
+/* Style the completion buttons container */
+.completion-buttons {
+    display: flex;
+    flex-direction: column; /* Stack buttons vertically */
+    gap: 15px; /* Space between buttons */
+}
+
+/* Style the buttons */
+.completion-buttons button {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 5px;
+    font-size: 1.1em;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    width: 100%; /* Make buttons full width */
+}
+
+/* Specific style for View Stats button */
+#view-stats-button {
+    background-color: #fff; /* White background */
+    color: #007bff; /* Blue text */
+    border: 1px solid #007bff; /* Blue border */
+}
+
+/* Specific style for Return Home button */
+#return-home-button {
+    background-color: #343a40; /* Dark background */
+    color: white;
+}
+
+
+/* Confetti Animation (using canvas-confetti JS library) */
+/* The JS library creates its own canvas, so we just need to style
+   the background element if we want a specific background color/image
+   behind the confetti, or just let the body background show through. */
+.confetti-background {
+    position: fixed; /* Fixed position to cover the whole viewport */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    /* Remove overflow: hidden if you want confetti to go beyond viewport */
+    /* overflow: hidden; */
+    z-index: 0; /* Send to background */
+    pointer-events: none; /* Allow mouse events to pass through */
+    /* Removed ::before and ::after pseudo-element rules and @keyframes */
+}

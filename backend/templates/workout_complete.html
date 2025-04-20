@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workout Complete!</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}"> 
+    <link rel="stylesheet" href="{{ url_for('static', filename='workout_complete.css') }}"> 
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+</head>
+<body>
+    <div class="confetti-background"></div>
+    <div class="container workout-complete-container">
+        <div class="celebration-header">
+            <span class="celebration-icon">🎉</span>
+            <h1>WORKOUT COMPLETE!</h1>
+        </div>
+
+        <div class="card motivational-message-card">
+            <p id="motivational-message">Loading motivational message...</p>
+        </div>
+
+        <div class="completion-buttons">
+            <button id="view-stats-button">📊 View Stats</button> <button id="return-home-button">🏠 Return Home</button> </div>
+    </div>
+
+    <script>
+        // Get session_id from the URL path
+        const pathParts = window.location.pathname.split('/');
+        // Assuming URL structure is /session/<session_id>/complete
+        const sessionId = pathParts[2];
+    </script>
+    <script src="{{ url_for('static', filename='workout_complete.js') }}"></script>
+</body>
+</html>
