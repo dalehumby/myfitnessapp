@@ -1,6 +1,9 @@
 # backend/app.py
 from flask import Flask, request, jsonify, g, render_template, redirect, url_for
 from .database import get_db, close_db, init_db, query_db, insert_db
+
+# Import the new openai_service module
+from . import openai_service
 import click
 import datetime
 import sqlite3
@@ -461,14 +464,16 @@ def get_recent_sessions():
 def get_completed_session_message(session_id):
     # In the future, this could use the session_id to fetch session data
     # and generate a dynamic message based on performance.
-    # For now, return a static message.
-    message = {
-        "message": "Dale, you crushed today’s workout—tripling your deadlift from 6 kg to 45 kg and powering through 3 full sets at that weight shows insane progress and unstoppable momentum! 💪🔥"
-        # You could potentially fetch session data here like:
-        # session_data = query_db('SELECT * FROM session WHERE id = ?', (session_id,), one=True)
-        # And use it to personalize the message.
-    }
-    return jsonify(message)
+    # For now, let's call the OpenAI service.
+    username = "Dale"  # Hardcoded username for now
+
+    # Call the OpenAI service function, passing the current session_id and the query function
+    # Pass the query_db function from the current scope
+    motivational_message = openai_service.generate_motivational_message_for_session(
+        username, session_id, query_db
+    )
+
+    return jsonify({"message": motivational_message})
 
 
 if __name__ == "__main__":
