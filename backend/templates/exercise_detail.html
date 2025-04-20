@@ -1,0 +1,51 @@
+<!-- frontend/templates/exercise_detail.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exercise Detail</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <!-- Navigation buttons (implement logic in JS) -->
+            <button id="prev-exercise">&lt; Previous Exercise</button>
+            <button id="next-exercise">Next Exercise &gt;</button>
+        </div>
+
+        <div class="exercise-card">
+            <div class="exercise-title">
+                <img src="{{ url_for('static', filename='dumbbell-icon.png') }}" alt="Dumbbell icon">
+                <h2 id="exercise-title">Loading Exercise...</h2>
+            </div>
+            <p id="exercise-target"></p>
+
+            <div class="sets-section">
+                <h3>Warm-up Sets:</h3>
+                <div class="set-list" id="warmup-sets">
+                    <!-- Warm-up sets will be loaded here by JavaScript -->
+                </div>
+                 <!-- Add set button for warmups (optional) -->
+                 <!-- <button class="add-set-button" data-set-type="warmup">+ Add Warm-up Set</button> -->
+            </div>
+
+            <div class="sets-section">
+                <h3>Working Sets:</h3>
+                <div class="set-list" id="working-sets">
+                    <!-- Working sets will be loaded here by JavaScript -->
+                </div>
+                 <!-- Add set button for working sets -->
+                 <button class="add-set-button" data-set-type="working">+ Add Set</button>
+            </div>
+
+            <div class="footer">
+                <button id="view-previous">View Previous</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='exercise_detail.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gym Tracker Home</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='home.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="card start-workout-card">
+            <div class="card-header">
+                 <span class="header-icon">🔥</span> <h2>Start Workout</h2>
+            </div>
+
+            <div class="start-workout-selectors">
+                <select id="program-select">
+                    <option value="">Program</option> </select>
+                <select id="day-select" disabled>
+                    <option value="">Day</option> </select>
+            </div>
+
+            <button id="start-session-button" disabled>Start Workout</button>
+        </div>
+
+        <div class="card recent-workouts-card">
+             <div class="card-header">
+                <span class="header-icon">📄</span> <h2>Recent Workouts</h2>
+            </div>
+            <ul id="recent-workouts-list">
+                <li>Loading recent workouts...</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='home.js') }}"></script>
+</body>
+</html>

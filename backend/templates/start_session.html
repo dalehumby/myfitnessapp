@@ -1,0 +1,31 @@
+<!-- frontend/start_session.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Start New Session</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Start New Session</h1>
+
+        <label for="program-select">Select Program:</label>
+        <select id="program-select">
+            <option value="">--Select a Program--</option>
+            <!-- Options will be populated by JavaScript -->
+        </select>
+
+        <label for="day-select">Select Day:</label>
+        <select id="day-select" disabled>
+            <option value="">--Select a Day--</option>
+            <!-- Options will be populated by JavaScript -->
+        </select>
+
+        <button id="start-session-button" disabled>Start Session</button>
+    </div>
+
+    <script src="{{ url_for('static', filename='start_session.js') }}"></script>
+</body>
+</html>

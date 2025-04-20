@@ -1,0 +1,153 @@
+/* backend/static/home.css */
+
+/* General card styling */
+.container {
+    /* Assuming some container styling from style.css for centering/padding */
+    max-width: 600px; /* Example max-width */
+    margin: 20px auto; /* Center the container */
+    padding: 0 10px; /* Add some padding on smaller screens */
+}
+
+.card {
+    border: 1px solid #e0e0e0; /* Lighter border */
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 10px; /* More rounded corners */
+    background-color: #fff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08); /* Softer shadow */
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px; /* Space below the header */
+}
+
+.card-header .header-icon {
+    font-size: 1.5em; /* Size of the icon */
+    margin-right: 10px; /* Space between icon and title */
+    /* Add padding/margin if using background icons */
+}
+
+.card-header h2 {
+    margin: 0;
+    font-size: 1.3em; /* Larger heading font size */
+    font-weight: 600; /* Slightly bolder */
+}
+
+/* Start Workout Section specific styles */
+.start-workout-card .start-workout-selectors {
+    display: flex; /* Arrange selectors side-by-side */
+    gap: 10px; /* Space between dropdowns */
+    margin-bottom: 15px; /* Space below selectors */
+    flex-wrap: wrap; /* Allow wrapping on small screens */
+}
+
+.start-workout-card select {
+    flex: 1; /* Allow dropdowns to take equal space */
+    padding: 10px; /* More padding */
+    border: 1px solid #ccc;
+    border-radius: 5px; /* Slightly rounded dropdown corners */
+    font-size: 1em;
+    background-color: #f9f9f9; /* Light background */
+    appearance: none; /* Remove default dropdown arrow */
+    background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.362%22%20height%3D%22292.362%22%3E%3Cpath%20fill%3D%22%23007bff%22%20d%3D%22M287.9%20269.15L159.4%20140.66l128.43-128.44c4.1-4.1%204.1-10.7%200-14.8s-10.7-4.1-14.84-.01L137%20126.21c-6.28%206.28-11.7%2013.77-16.12%2021.87-4.43%208.1-.62%2017.2%207.78%2024.56l129.65%20129.65c4.1%204.1 10.7%204.1 14.84%200s4.1-10.7-.01-14.84z%22%2F%3E%3C%2Fsvg%3E'); /* Custom arrow */
+    background-repeat: no-repeat;
+    background-position: right 10px top 50%;
+    background-size: 12px auto;
+    padding-right: 30px; /* Make space for the custom arrow */
+    cursor: pointer;
+}
+
+
+.start-workout-card button {
+     display: block;
+     width: 100%;
+     padding: 12px; /* More vertical padding */
+     background-color: #007bff; /* Blue color from mockup */
+     color: white;
+     border: none;
+     border-radius: 5px; /* Rounded button corners */
+     font-size: 1.1em;
+     font-weight: bold; /* Bolder text */
+     cursor: pointer;
+     transition: background-color 0.3s ease;
+}
+
+.start-workout-card button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+/* Recent Workouts Section specific styles */
+.recent-workouts-card ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.recent-workouts-card li {
+    border-bottom: 1px solid #eee;
+    padding: 12px 0; /* More vertical padding */
+    cursor: pointer;
+    /* Optional: Add a subtle hover effect */
+    transition: background-color 0.2s ease;
+}
+
+.recent-workouts-card li:hover {
+    background-color: #f9f9f9; /* Highlight on hover */
+}
+
+
+.recent-workouts-card li:last-child {
+    border-bottom: none;
+}
+
+.recent-workout-header {
+    margin-bottom: 5px;
+    /* Optional: use flexbox for better control over spacing if needed */
+    /* display: flex; */
+    /* align-items: baseline; */
+    /* gap: 5px; /* Adjust gap as needed */
+}
+
+.recent-workout-date {
+    font-weight: 600;
+    margin-right: 5px; /* Space after the date */
+}
+
+.recent-workout-program {
+    color: #555;
+    font-size: 1em;
+    /* margin-right: 5px; /* Space after program if not using flexbox gap */
+}
+
+.recent-workout-day {
+    color: #555;
+    font-size: 1em;
+}
+
+
+.recent-workout-exercises {
+     font-size: 0.95em;
+     color: #666;
+     margin-top: 5px;
+     line-height: 1.4;
+}
+
+/* Optional: Adjust container padding for mobile */
+@media (max-width: 400px) {
+    .container {
+        padding: 0 5px;
+    }
+    .card {
+        padding: 10px;
+    }
+    .start-workout-selectors {
+        flex-direction: column; /* Stack dropdowns on very small screens */
+        gap: 10px;
+    }
+     .start-workout-card select {
+         padding: 8px;
+     }
+}

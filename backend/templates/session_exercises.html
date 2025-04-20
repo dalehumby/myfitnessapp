@@ -1,0 +1,21 @@
+<!-- frontend/session_exercises.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Exercises</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1 id="session-title">Loading Session...</h1>
+
+        <ul id="exercise-list">
+            <!-- Exercises will be populated by JavaScript -->
+        </ul>
+    </div>
+
+    <script src="{{ url_for('static', filename='session_exercises.js') }}"></script>
+</body>
+</html>

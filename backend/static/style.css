@@ -1,0 +1,87 @@
+/* Basic styling for layout and appearance */
+body {
+    font-family: sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f4f4f4;
+}
+
+.container {
+    max-width: 600px;
+    margin: 0 auto;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.exercise-card {
+    border: 1px solid #ccc;
+    padding: 15px;
+    border-radius: 5px;
+}
+
+.exercise-title {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.exercise-title img {
+    width: 30px;
+    margin-right: 10px;
+}
+
+.sets-section {
+    margin-top: 20px;
+    border-top: 1px solid #eee;
+    padding-top: 15px;
+}
+
+.set-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.set-item input[type="number"] {
+    width: 50px;
+    margin-right: 5px;
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.set-item span {
+    margin-right: 10px;
+}
+
+.set-actions button {
+    margin-left: 10px;
+    padding: 5px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.add-set-button {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    border: 1px dashed #ccc;
+    background-color: #f9f9f9;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.footer {
+    margin-top: 20px;
+    text-align: center;
+}
