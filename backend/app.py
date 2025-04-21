@@ -1,4 +1,3 @@
-# backend/app.py
 from flask import Flask, request, jsonify, g, render_template, redirect, url_for
 from .database import get_db, close_db, init_db, query_db, insert_db
 
